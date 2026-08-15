@@ -302,7 +302,10 @@ function renderJournal(){
   if(!LOG.length){ box.innerHTML='<span class="ph">Aucun pronostic enregistré pour l\u2019instant</span>'; document.getElementById('journalStats').textContent=''; return; }
   box.innerHTML = LOG.slice().reverse().map(e=>{
     const idx = LOG.indexOf(e);
-    let body = '<div class="probs">'+e.teamA+' '+e.pA+'% · Nul '+e.pN+'% · '+e.teamB+' '+e.pB+'%</div>';
+    let body = '<div class="probs">Modèle — '+e.teamA+' '+e.pA+'% · Nul '+e.pN+'% · '+e.teamB+' '+e.pB+'%</div>';
+    if(e.bookA!==null && e.bookA!==undefined){
+      body += '<div class="probs" style="color:var(--amber);">Book — '+e.teamA+' '+e.bookA+'% · Nul '+e.bookN+'% · '+e.teamB+' '+e.bookB+'%</div>';
+    }
     if(e.result){
       const yA = e.result.a>e.result.b?1:0, yN = e.result.a===e.result.b?1:0, yB = e.result.a<e.result.b?1:0;
       const brier = Math.pow(e.pA/100-yA,2)+Math.pow(e.pN/100-yN,2)+Math.pow(e.pB/100-yB,2);
