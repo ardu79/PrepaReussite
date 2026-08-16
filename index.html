@@ -97,6 +97,14 @@ details summary::-webkit-details-marker{display:none;}
 
 <div class="league-row"><label>Nb équipes du championnat</label><input type="number" id="totalTeams" value="18" min="2"></div>
 
+<div class="panel h2h" id="classementPanel">
+<div class="tag">Classement du championnat (à saisir une fois)</div>
+<div class="note" style="margin-top:6px;">Colle les noms dans l'ordre du classement, un par ligne (1er en haut). Reste enregistré ici — tu n'as plus qu'à choisir l'adversaire dans la liste au lieu de taper son rang à chaque match.</div>
+<textarea id="classementInput" rows="4" style="width:100%;margin-top:8px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px;" placeholder="Sporting&#10;PSG&#10;Real Madrid&#10;..."></textarea>
+<div class="addrow2"><button class="abtn" id="btnSaveClassement" style="flex:1;">Enregistrer</button><button class="clr" id="btnClearClassement">effacer</button></div>
+<div class="list" id="classementList" style="margin-top:8px;"><span class="ph">Aucun classement enregistré</span></div>
+</div>
+
 <div class="matchup">
 <div class="panel panel-a">
 <div class="tag">Équipe A</div>
@@ -117,7 +125,7 @@ details summary::-webkit-details-marker{display:none;}
 <div class="venue" id="venueA"><button data-v="dom" class="on">Dom.</button><button data-v="ext">Ext.</button><button data-v="neutre">Neutre</button></div>
 <span class="lbl">7 derniers matchs (score + rang adv.)</span>
 <div class="addrow"><input type="number" id="addBmA" placeholder="Marqués"><input type="number" id="addBeA" placeholder="Encaissés"></div>
-<div class="addrow2"><input type="number" id="addRkA" placeholder="Rang adv. (option)"><button class="abtn" id="btnA">+Ajouter</button></div>
+<div class="addrow2"><select id="addRkSelA" style="flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px;"><option value="">Adversaire (classement)</option></select><input type="number" id="addRkManA" placeholder="N°" style="display:none;width:50px;"><button class="abtn" id="btnA">+Ajouter</button></div>
 <div class="list" id="listA"><span class="ph">Aucun match</span></div>
 <div class="meta"><span class="cnt" id="cntA">0/7</span><button class="clr" data-t="A">effacer</button></div>
 </div>
@@ -143,7 +151,7 @@ details summary::-webkit-details-marker{display:none;}
 <div class="venue" id="venueB"><button data-v="dom">Dom.</button><button data-v="ext" class="on">Ext.</button><button data-v="neutre">Neutre</button></div>
 <span class="lbl">7 derniers matchs (score + rang adv.)</span>
 <div class="addrow"><input type="number" id="addBmB" placeholder="Marqués"><input type="number" id="addBeB" placeholder="Encaissés"></div>
-<div class="addrow2"><input type="number" id="addRkB" placeholder="Rang adv. (option)"><button class="abtn" id="btnB">+Ajouter</button></div>
+<div class="addrow2"><select id="addRkSelB" style="flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px;"><option value="">Adversaire (classement)</option></select><input type="number" id="addRkManB" placeholder="N°" style="display:none;width:50px;"><button class="abtn" id="btnB">+Ajouter</button></div>
 <div class="list" id="listB"><span class="ph">Aucun match</span></div>
 <div class="meta"><span class="cnt" id="cntB">0/7</span><button class="clr" data-t="B">effacer</button></div>
 </div>
@@ -182,6 +190,26 @@ details summary::-webkit-details-marker{display:none;}
 const MAXM=7, MAXH=5;
 const st={A:{m:[],v:'dom'},B:{m:[],v:'ext'},h2:[]};
 
+function loadClassement(){ try{ return JSON.parse(localStorage.getItem('faceAFaceClassement')||'[]'); }catch(e){ return []; } }
+function saveClassementLS(a){ try{ localStorage.setItem('faceAFaceClassement', JSON.stringify(a)); }catch(e){} }
+let CLASSEMENT = loadClassement();
+function renderClassement(){
+  const box=document.getElementById('classementList');
+  box.innerHTML = CLASSEMENT.length ? CLASSEMENT.map((n,i)=>'<div class="row"><span class="rk">#'+(i+1)+'</span><span class="res">'+n+'</span></div>').join('') : '<span class="ph">Aucun classement enregistré</span>';
+  document.getElementById('classementInput').value = CLASSEMENT.join('\n');
+  if(CLASSEMENT.length) document.getElementById('totalTeams').value = CLASSEMENT.length;
+  ['A','B'].forEach(t=>{
+    const sel=document.getElementById('addRkSel'+t);
+    sel.innerHTML='<option value="">Adversaire (classement)</option>'+CLASSEMENT.map((n,i)=>'<option value="'+(i+1)+'">#'+(i+1)+' '+n+'</option>').join('')+'<option value="manual">Autre (n° manuel)</option>';
+  });
+}
+document.getElementById('btnSaveClassement').onclick=()=>{
+  CLASSEMENT = document.getElementById('classementInput').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  saveClassementLS(CLASSEMENT); renderClassement();
+};
+document.getElementById('btnClearClassement').onclick=()=>{ if(confirm('Effacer le classement enregistré ?')){ CLASSEMENT=[]; saveClassementLS(CLASSEMENT); renderClassement(); } };
+renderClassement();
+
 function dRes(a,b){return a>b?"V":(a===b?"N":"D");}
 function pRes(r){return r==="V"?3:(r==="N"?1:0);}
 function pFor(m){return pRes(dRes(m.bm,m.be));}
@@ -217,13 +245,20 @@ function renderList(t){
   }).join('') : '<span class="ph">Aucun match</span>';
 }
 ['A','B'].forEach(t=>{
+  document.getElementById('addRkSel'+t).onchange=function(){
+    document.getElementById('addRkMan'+t).style.display = this.value==='manual' ? 'inline-block' : 'none';
+  };
   document.getElementById('btn'+t).onclick=()=>{
     const bm=parseFloat(document.getElementById('addBm'+t).value);
     const be=parseFloat(document.getElementById('addBe'+t).value);
-    const rk=parseFloat(document.getElementById('addRk'+t).value);
+    const selVal=document.getElementById('addRkSel'+t).value;
+    let rk=null;
+    if(selVal==='manual'){ const m=parseFloat(document.getElementById('addRkMan'+t).value); rk=isNaN(m)?null:m; }
+    else if(selVal){ rk=parseFloat(selVal); }
     if(isNaN(bm)||isNaN(be)||bm<0||be<0||st[t].m.length>=MAXM) return;
-    st[t].m.push({bm,be,rank:isNaN(rk)?null:rk});
-    document.getElementById('addBm'+t).value='';document.getElementById('addBe'+t).value='';document.getElementById('addRk'+t).value='';
+    st[t].m.push({bm,be,rank:rk});
+    document.getElementById('addBm'+t).value='';document.getElementById('addBe'+t).value='';
+    document.getElementById('addRkSel'+t).value='';document.getElementById('addRkMan'+t).value='';document.getElementById('addRkMan'+t).style.display='none';
     renderList(t);
   };
 });
