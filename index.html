@@ -336,6 +336,16 @@ function isMirror(e){
   if(e.bookA===null || e.bookA===undefined) return false;
   return Math.abs(e.pA-e.bookB)<=3 && Math.abs(e.bookA-e.pB)<=3;
 }
+// Désaccord fort : le modèle donne A favori, mais le book penche nettement pour B (ou l'inverse), écart >= 15 pts
+function strongDisagree(e){
+  if(e.bookA===null || e.bookA===undefined) return null;
+  const modelFavA = e.pA>e.pB;
+  const bookFavA = e.bookA>e.bookB;
+  if(modelFavA===bookFavA) return null; // même sens, pas un désaccord de favori
+  if(modelFavA && (e.bookB-e.bookA)>=15) return 'B'; // modèle dit A, book penche fort pour B
+  if(!modelFavA && (e.bookA-e.bookB)>=15) return 'A'; // modèle dit B, book penche fort pour A
+  return null;
+}
 function renderJournal(){
   const box=document.getElementById('journal');
   if(!LOG.length){ box.innerHTML='<span class="ph">Aucun pronostic enregistré pour l\u2019instant</span>'; document.getElementById('journalStats').textContent=''; return; }
@@ -347,6 +357,11 @@ function renderJournal(){
     }
     if(isMirror(e)){
       body += '<div class="probs" style="color:var(--teal);">🪞 Miroir détecté — modèle et book quasi inversés sur les deux équipes</div>';
+    }
+    const sd = strongDisagree(e);
+    if(sd){
+      const bookPick = sd==='A' ? e.teamA : e.teamB;
+      body += '<div class="probs" style="color:var(--red);">⚠️ Désaccord fort — le book penche nettement pour '+bookPick+' contre le favori du modèle</div>';
     }
     if(e.result){
       const yA = e.result.a>e.result.b?1:0, yN = e.result.a===e.result.b?1:0, yB = e.result.a<e.result.b?1:0;
@@ -365,7 +380,7 @@ function renderJournal(){
   });
   const done = LOG.filter(e=>e.result);
   if(done.length){
-    let sumB=0, hits=0, sumBook=0, hitsBook=0, nBook=0, mirrorN=0, mirrorDraws=0;
+    let sumB=0, hits=0, sumBook=0, hitsBook=0, nBook=0, mirrorN=0, mirrorDraws=0, sdN=0, sdBookRight=0;
     done.forEach(e=>{
       const yA=e.result.a>e.result.b?1:0, yN=e.result.a===e.result.b?1:0, yB=e.result.a<e.result.b?1:0;
       sumB += Math.pow(e.pA/100-yA,2)+Math.pow(e.pN/100-yN,2)+Math.pow(e.pB/100-yB,2);
@@ -379,10 +394,13 @@ function renderJournal(){
         if(favBook===actual) hitsBook++;
       }
       if(isMirror(e)){ mirrorN++; if(yN) mirrorDraws++; }
+      const sd = strongDisagree(e);
+      if(sd){ sdN++; if(sd===actual) sdBookRight++; }
     });
     let txt = 'Modèle — Brier '+(sumB/done.length).toFixed(3)+' · favori correct '+hits+'/'+done.length;
     if(nBook) txt += ' · Book — Brier '+(sumBook/nBook).toFixed(3)+' · favori correct '+hitsBook+'/'+nBook;
     if(mirrorN) txt += ' · 🪞 Miroir : '+mirrorDraws+'/'+mirrorN+' nul(s)';
+    if(sdN) txt += ' · ⚠️ Désaccord fort : book correct '+sdBookRight+'/'+sdN;
     document.getElementById('journalStats').textContent = txt;
   } else {
     document.getElementById('journalStats').textContent = LOG.length+' pronostic(s) en attente de résultat';
