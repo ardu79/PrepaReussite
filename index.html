@@ -342,8 +342,8 @@ function strongDisagree(e){
   const modelFavA = e.pA>e.pB;
   const bookFavA = e.bookA>e.bookB;
   if(modelFavA===bookFavA) return null; // même sens, pas un désaccord de favori
-  if(modelFavA && (e.bookB-e.bookA)>=15) return 'B'; // modèle dit A, book penche fort pour B
-  if(!modelFavA && (e.bookA-e.bookB)>=15) return 'A'; // modèle dit B, book penche fort pour A
+  if(modelFavA && (e.bookB-e.bookA)>=12) return 'B'; // modèle dit A, book penche fort pour B
+  if(!modelFavA && (e.bookA-e.bookB)>=12) return 'A'; // modèle dit B, book penche fort pour A
   return null;
 }
 function renderJournal(){
