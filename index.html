@@ -109,6 +109,7 @@ details summary::-webkit-details-marker{display:none;}
 <div class="panel panel-a">
 <div class="tag">Équipe A</div>
 <input class="name" id="nameA" value="Équipe A">
+<div class="addrow2"><select id="teamSelA" style="flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px;"><option value="">Équipe enregistrée…</option></select><button class="abtn" id="teamSaveA">💾</button></div>
 <span class="lbl">Bilan saison</span>
 <div class="g4">
 <div class="nf"><label>MJ</label><input type="number" id="mjA" value="20"></div>
@@ -135,6 +136,7 @@ details summary::-webkit-details-marker{display:none;}
 <div class="panel panel-b">
 <div class="tag">Équipe B</div>
 <input class="name" id="nameB" value="Équipe B">
+<div class="addrow2"><select id="teamSelB" style="flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px;"><option value="">Équipe enregistrée…</option></select><button class="abtn" id="teamSaveB">💾</button></div>
 <span class="lbl">Bilan saison</span>
 <div class="g4">
 <div class="nf"><label>MJ</label><input type="number" id="mjB" value="20"></div>
@@ -209,6 +211,44 @@ document.getElementById('btnSaveClassement').onclick=()=>{
 };
 document.getElementById('btnClearClassement').onclick=()=>{ if(confirm('Effacer le classement enregistré ?')){ CLASSEMENT=[]; saveClassementLS(CLASSEMENT); renderClassement(); } };
 renderClassement();
+
+// --- Base d'équipes réutilisables ---
+function loadTeams(){ try{ return JSON.parse(localStorage.getItem('faceAFaceTeams')||'{}'); }catch(e){ return {}; } }
+function saveTeamsLS(){ try{ localStorage.setItem('faceAFaceTeams', JSON.stringify(TEAMS)); }catch(e){} }
+let TEAMS = loadTeams();
+function populateTeamSelects(){
+  ['A','B'].forEach(t=>{
+    const sel=document.getElementById('teamSel'+t);
+    sel.innerHTML='<option value="">Équipe enregistrée…</option>'+Object.keys(TEAMS).map(n=>'<option value="'+n+'">'+n+'</option>').join('');
+  });
+}
+populateTeamSelects();
+['A','B'].forEach(t=>{
+  document.getElementById('teamSel'+t).onchange=function(){
+    const p=TEAMS[this.value]; if(!p) return;
+    document.getElementById('name'+t).value=this.value;
+    document.getElementById('mj'+t).value=p.mj; document.getElementById('v'+t).value=p.v;
+    document.getElementById('n'+t).value=p.n; document.getElementById('d'+t).value=p.d;
+    document.getElementById('bm'+t).value=p.bm; document.getElementById('be'+t).value=p.be;
+    st[t].m = (p.matches||[]).slice(); renderList(t);
+  };
+  document.getElementById('teamSave'+t).onclick=()=>{
+    const d=teamInputs(t);
+    TEAMS[d.name]={mj:d.mj,v:d.v,n:d.n,d:d.d,bm:d.bm,be:d.be,matches:st[t].m.slice()};
+    saveTeamsLS(); populateTeamSelects();
+    alert(d.name+' enregistrée.');
+  };
+});
+function updateTeamProfile(name, gf, ga, oppName){
+  if(!name) return;
+  const p = TEAMS[name] || {mj:0,v:0,n:0,d:0,bm:0,be:0,matches:[]};
+  p.mj++; if(gf>ga) p.v++; else if(gf===ga) p.n++; else p.d++;
+  p.bm+=gf; p.be+=ga;
+  const rIdx = CLASSEMENT.indexOf(oppName);
+  p.matches.unshift({bm:gf,be:ga,rank: rIdx>=0 ? rIdx+1 : null});
+  if(p.matches.length>7) p.matches.pop();
+  TEAMS[name]=p;
+}
 
 function dRes(a,b){return a>b?"V":(a===b?"N":"D");}
 function pRes(r){return r==="V"?3:(r==="N"?1:0);}
@@ -376,7 +416,11 @@ function renderJournal(){
     const i=+b.dataset.idx;
     const a=+document.getElementById('jrA'+i).value, bb=+document.getElementById('jrB'+i).value;
     if(isNaN(a)||isNaN(bb)) return;
-    LOG[i].result={a,b:bb}; saveLog(LOG); renderJournal();
+    LOG[i].result={a,b:bb}; saveLog(LOG);
+    updateTeamProfile(LOG[i].teamA, a, bb, LOG[i].teamB);
+    updateTeamProfile(LOG[i].teamB, bb, a, LOG[i].teamA);
+    saveTeamsLS(); populateTeamSelects();
+    renderJournal();
   });
   const done = LOG.filter(e=>e.result);
   if(done.length){
