@@ -137,24 +137,6 @@ details summary::-webkit-details-marker{display:none;}
 <div class="meta" style="margin-top:8px;"><span class="cnt" id="journalStats"></span><button class="clr" id="clrJournal">vider le journal</button></div>
 </div>
 </details>
-
-<div class="card" style="margin-top:14px;">
-<div class="eyb">Suivi de montante</div>
-<div class="note" style="margin-top:0;margin-bottom:10px;">Chaque match a sa propre cote — tu la rentres au moment de valider l'étape, pas à l'avance. La mise engagée progresse en fonction de la cote réellement obtenue à chaque étape.</div>
-<div class="g2">
-<div class="nf"><label>Mise de départ</label><input type="number" id="mtStart" value="1000"></div>
-<div class="nf"><label>Marché suivi</label><select id="mtMarket" style="width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px;"><option value="over">Over 2.5</option><option value="btts">BTTS</option><option value="combo">Combiné (Over+BTTS)</option></select></div>
-</div>
-<div class="mk" style="margin-top:10px;"><div class="l">Mise engagée actuellement (palier <span id="mtStepTxt">0</span>)</div><div class="v" id="mtCurrent">1000</div></div>
-<div class="addrow" style="margin-top:10px;">
-<input type="number" id="mtOddsInput" placeholder="Cote de ce match" step="0.01">
-<button class="abtn" id="mtWin" style="background:var(--green);color:var(--bg);">✓ Gagné</button>
-<button class="abtn" id="mtLose" style="background:var(--red);color:var(--bg);">✗ Perdu</button>
-</div>
-<div class="note" id="mtNote"></div>
-<div class="list" id="mtHistory" style="margin-top:8px;"><span class="ph">Aucune étape jouée</span></div>
-<div class="meta"><span class="cnt" id="mtReco"></span><button class="clr" id="mtReset">réinitialiser la montante</button></div>
-</div>
 </div>
 
 <script>
@@ -268,48 +250,6 @@ document.getElementById('jFilter').onchange=renderJournal;
 document.getElementById('jMinPct').oninput=renderJournal;
 document.getElementById('clrJournal').onclick=()=>{ if(confirm('Vider le journal ?')){ LOG=[]; saveLog(LOG); renderJournal(); } };
 renderJournal();
-
-// --- Suivi de montante ---
-function loadMt(){ try{ return JSON.parse(localStorage.getItem('goalsMarketMontante2')||'null'); }catch(e){ return null; } }
-function saveMt(){ try{ localStorage.setItem('goalsMarketMontante2', JSON.stringify(MT)); }catch(e){} }
-let MT = loadMt() || {start:1000, history:[]}; // history: [{odds, stakeBefore, stakeAfter}]
-document.getElementById('mtStart').value=MT.start;
-function currentStake(){ return MT.history.length ? MT.history[MT.history.length-1].stakeAfter : (+document.getElementById('mtStart').value||1000); }
-function renderMt(){
-  const stake=currentStake();
-  document.getElementById('mtCurrent').textContent = stake.toFixed(0);
-  document.getElementById('mtStepTxt').textContent = MT.history.length;
-  document.getElementById('mtNote').textContent = MT.history.length===0 ? 'Palier de départ — rentre la cote du match puis valide.' : (MT.history.length+' étape(s) validée(s) d\u2019affilée.');
-  const hbox=document.getElementById('mtHistory');
-  hbox.innerHTML = MT.history.length ? MT.history.map((h,i)=>'<div class="row"><span class="badge">Étape '+(i+1)+'</span><span class="res">cote '+h.odds+' · '+h.stakeBefore.toFixed(0)+' → '+h.stakeAfter.toFixed(0)+'</span></div>').join('') : '<span class="ph">Aucune étape jouée</span>';
-  // Recommandation de marché à partir du journal (précision par type)
-  const done=LOG.filter(e=>e.result);
-  const acc=(pred)=>{ let ok=0,n=0; done.forEach(e=>{
-      const total=e.result.a+e.result.b, btts=e.result.a>0&&e.result.b>0;
-      if(pred==='over'){ n++; if((total>=3)===(e.pOver>=50)) ok++; }
-      else if(pred==='btts'){ n++; if(btts===(e.pBTTS>=50)) ok++; }
-      else if(pred==='combo' && e.pCombo!==undefined){ n++; const comboOk=(total>=3&&btts); if(comboOk===(e.pCombo>=50)) ok++; }
-    }); return n>=5 ? {ok,n,pct:Math.round(ok/n*100)} : null; };
-  const rOver=acc('over'), rBtts=acc('btts'), rCombo=acc('combo');
-  let best=null, bestLabel='';
-  [['Over 2.5',rOver],['BTTS',rBtts],['Combiné',rCombo]].forEach(([lbl,r])=>{ if(r && (!best||r.pct>best.pct)){ best=r; bestLabel=lbl; } });
-  document.getElementById('mtReco').textContent = best ? ('Le plus fiable dans ton journal : '+bestLabel+' ('+best.pct+'% sur '+best.n+' matchs)') : 'Pas encore assez de résultats dans le journal (5 min. par marché) pour recommander un marché.';
-  saveMt();
-}
-document.getElementById('mtStart').oninput=()=>{ if(!MT.history.length) renderMt(); };
-document.getElementById('mtWin').onclick=()=>{
-  const odds=+document.getElementById('mtOddsInput').value;
-  if(!odds||odds<=1){ alert('Rentre une cote réelle (supérieure à 1).'); return; }
-  const before=currentStake(), after=before*odds;
-  MT.history.push({odds,stakeBefore:before,stakeAfter:after});
-  document.getElementById('mtOddsInput').value='';
-  renderMt();
-};
-document.getElementById('mtLose').onclick=()=>{
-  if(confirm('Étape perdue : la montante repart de la mise de départ ?')){ MT.history=[]; renderMt(); }
-};
-document.getElementById('mtReset').onclick=()=>{ if(confirm('Tout réinitialiser (mise de départ comprise) ?')){ MT={start:+document.getElementById('mtStart').value||1000, history:[]}; renderMt(); } };
-renderMt();
 
 document.getElementById('go').onclick=()=>{
   const A=teamInputs('A'), B=teamInputs('B');
