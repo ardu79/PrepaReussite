@@ -127,7 +127,7 @@ details summary::-webkit-details-marker{display:none;}
 <option value="all">Tous</option>
 <option value="bttsGtOver">BTTS % &gt; Over %</option>
 <option value="overGtBtts">Over % &gt; BTTS %</option>
-<option value="doubleStrong">🎯 Double signal fort (≥60% chacun)</option>
+<option value="doubleStrong">🎯 Signal fort (Over &gt;60% et Over &gt; BTTS)</option>
 <option value="pending">En attente de résultat</option>
 <option value="done">Avec résultat</option>
 </select>
@@ -224,7 +224,7 @@ function passesFilter(e){
   const f = document.getElementById('jFilter').value;
   if(f==='bttsGtOver' && !(e.pBTTS>e.pOver)) return false;
   if(f==='overGtBtts' && !(e.pOver>e.pBTTS)) return false;
-  if(f==='doubleStrong' && !(e.pOver>=60 && e.pBTTS>=60)) return false;
+  if(f==='doubleStrong' && !(e.pOver>60 && e.pOver>e.pBTTS)) return false;
   if(f==='pending' && e.result) return false;
   if(f==='done' && !e.result) return false;
   return true;
@@ -236,7 +236,7 @@ function renderJournal(){
   box.innerHTML = filtered.length ? filtered.slice().reverse().map(e=>{
     const idx=LOG.indexOf(e);
     let body='<div class="probs">'+e.teamA+' vs '+e.teamB+' — '+(e.pOver>=50?'Plus':'Moins')+' de 2.5 ('+e.pOver+'%) · BTTS '+(e.pBTTS>=50?'Oui':'Non')+' ('+e.pBTTS+'%)'+(e.pCombo!==undefined?' · Combiné '+e.pCombo+'%':'')+'</div>';
-    if(e.pOver>=60 && e.pBTTS>=60){ body += '<div class="probs" style="color:var(--teal);">🎯 Double signal fort</div>'; }
+    if(e.pOver>60 && e.pOver>e.pBTTS){ body += '<div class="probs" style="color:var(--teal);">🎯 Signal fort (Over &gt;60% et Over &gt; BTTS)</div>'; }
     if(e.result){
       const total=e.result.a+e.result.b, btts=e.result.a>0&&e.result.b>0;
       const overOk=(total>=3)===(e.pOver>=50), bttsOk=btts===(e.pBTTS>=50);
