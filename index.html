@@ -122,6 +122,16 @@ details summary::-webkit-details-marker{display:none;}
 <div class="card">
 <div class="eyb">Journal buts</div>
 <div class="note" style="margin-top:0;margin-bottom:10px;">Rentre le score final réel pour vérifier si le over/under et le BTTS prédits étaient bons. C'est le suivi qui manquait dans l'outil principal.</div>
+<div class="addrow" style="margin-bottom:10px;">
+<select id="jFilter" style="flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px;">
+<option value="all">Tous</option>
+<option value="bttsGtOver">BTTS % &gt; Over %</option>
+<option value="overGtBtts">Over % &gt; BTTS %</option>
+<option value="pending">En attente de résultat</option>
+<option value="done">Avec résultat</option>
+</select>
+<input type="number" id="jMinPct" placeholder="Confiance min %" style="width:120px;">
+</div>
 <div class="jr" id="journal"></div>
 <div class="meta" style="margin-top:8px;"><span class="cnt" id="journalStats"></span><button class="clr" id="clrJournal">vider le journal</button></div>
 </div>
@@ -187,10 +197,23 @@ function venueF(v){ return v==='dom'?1.08:(v==='ext'?0.93:1.0); }
 function loadLog(){ try{ return JSON.parse(localStorage.getItem('goalsMarketLog')||'[]'); }catch(e){ return []; } }
 function saveLog(l){ try{ localStorage.setItem('goalsMarketLog', JSON.stringify(l)); }catch(e){} }
 let LOG = loadLog();
+function passesFilter(e){
+  const overConf = Math.max(e.pOver, 100-e.pOver);
+  const bttsConf = Math.max(e.pBTTS, 100-e.pBTTS);
+  const minC = +document.getElementById('jMinPct').value || 0;
+  if(overConf<minC && bttsConf<minC) return false;
+  const f = document.getElementById('jFilter').value;
+  if(f==='bttsGtOver' && !(e.pBTTS>e.pOver)) return false;
+  if(f==='overGtBtts' && !(e.pOver>e.pBTTS)) return false;
+  if(f==='pending' && e.result) return false;
+  if(f==='done' && !e.result) return false;
+  return true;
+}
 function renderJournal(){
   const box=document.getElementById('journal');
   if(!LOG.length){ box.innerHTML='<span class="ph">Aucun pronostic enregistré</span>'; document.getElementById('journalStats').textContent=''; return; }
-  box.innerHTML = LOG.slice().reverse().map(e=>{
+  const filtered = LOG.filter(passesFilter);
+  box.innerHTML = filtered.length ? filtered.slice().reverse().map(e=>{
     const idx=LOG.indexOf(e);
     let body='<div class="probs">'+e.teamA+' vs '+e.teamB+' — '+(e.pOver>=50?'Plus':'Moins')+' de 2.5 ('+e.pOver+'%) · BTTS '+(e.pBTTS>=50?'Oui':'Non')+' ('+e.pBTTS+'%)</div>';
     if(e.result){
@@ -201,13 +224,13 @@ function renderJournal(){
       body += '<div class="jform"><input type="number" id="jrA'+idx+'" placeholder="Score A"><span>-</span><input type="number" id="jrB'+idx+'" placeholder="Score B"><button class="abtn" data-idx="'+idx+'" data-act="save">OK</button></div>';
     }
     return '<div class="jrow"><div class="top"><span>'+e.date+'</span></div>'+body+'</div>';
-  }).join('');
+  }).join('') : '<span class="ph">Aucun match ne correspond au filtre</span>';
   box.querySelectorAll('[data-act="save"]').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.idx, a=+document.getElementById('jrA'+i).value, bb=+document.getElementById('jrB'+i).value;
     if(isNaN(a)||isNaN(bb)) return;
     LOG[i].result={a,b:bb}; saveLog(LOG); renderJournal();
   });
-  const done=LOG.filter(e=>e.result);
+  const done=filtered.filter(e=>e.result);
   if(done.length){
     let overHits=0, bttsHits=0;
     done.forEach(e=>{
@@ -215,11 +238,13 @@ function renderJournal(){
       if((total>=3)===(e.pOver>=50)) overHits++;
       if(btts===(e.pBTTS>=50)) bttsHits++;
     });
-    document.getElementById('journalStats').textContent = 'Over/Under correct '+overHits+'/'+done.length+' · BTTS correct '+bttsHits+'/'+done.length;
+    document.getElementById('journalStats').textContent = '('+filtered.length+' filtré(s)) Over/Under correct '+overHits+'/'+done.length+' · BTTS correct '+bttsHits+'/'+done.length;
   } else {
-    document.getElementById('journalStats').textContent = LOG.length+' en attente de résultat';
+    document.getElementById('journalStats').textContent = filtered.length+' filtré(s), en attente de résultat';
   }
 }
+document.getElementById('jFilter').onchange=renderJournal;
+document.getElementById('jMinPct').oninput=renderJournal;
 document.getElementById('clrJournal').onclick=()=>{ if(confirm('Vider le journal ?')){ LOG=[]; saveLog(LOG); renderJournal(); } };
 renderJournal();
 
